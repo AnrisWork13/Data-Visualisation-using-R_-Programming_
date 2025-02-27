@@ -1,0 +1,531 @@
+---
+title: "MA304_2312127_"
+author: "Anris Roque Da Costa"
+date: "2024-04-12"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Objective:- Provide analysis and useful visualisation output from the given data frame that provides specific temperature and crime variation information based on the given location in Colchester. 
+
+
+Introduction: The analysis below provides valuable information on features contributed by specific techniques, such as the graphical representation of statistical measures with specific dimensions across their features. 
+
+
+The chunk of the code represents the directory addresses of the given train and test dataset, comprising unique features presently present within the dataset.  
+```{r}
+library(dplyr)
+df_crime <- read.csv("/Users/anrisroquedacosta/Desktop/all_academic_folder/Visualization/crime23.csv")
+df_tempra<- read.csv("/Users/anrisroquedacosta/Desktop/all_academic_folder/Visualization/temp2023.csv")
+```
+
+
+Checking if there are any values in the dataset that need to be added. The columns convey the number of missing values present for each column. If a column consists of almost 100% missing values, it is being discarded.
+```{r}
+df_crime <- data_frame(df_crime)
+df_tempra<- data_frame(df_tempra)
+#Number of missing values 
+print(anyNA(df_crime))
+print(anyNA(df_tempra))
+# finding the number of null values in crime data set 
+missing_crime_values <- sapply(df_crime, function(x) sum(is.na(x)))
+crime_missing <- data_frame(Column = names(missing_crime_values), Null_Countz = missing_crime_values)
+print(crime_missing)
+# finding the number of null values in tempreture data set 
+missing_temp_values <- sapply(df_tempra, function(x) sum(is.na(x)))
+temp_missing <- data_frame(Column = names(missing_temp_values), Null_Countz = missing_temp_values)
+print(temp_missing)
+```
+
+ Treating the columns by imputing the mode value for missing category values. The dimensions for the data column is about 6878 rows, with 12 columns. 
+
+```{r}
+library(tidyr)
+dim(df_crime)
+df_crime <- subset(df_crime, select = -context)
+#print(unique(df_crime$outcome_status))
+#print(mode(df_crime$outcome_status))
+#print(class(df_crime$outcome_status))
+#df_crime$outcome_status[is.na(df_crime$outcome_status)]<-"character"
+getmode_fun <- function(vl) {
+  uniqval <- unique(na.omit(vl)) 
+  uniqval[which.max(tabulate(match(vl, uniqval)))]
+}
+
+df_crime$outcome_status <- replace_na(df_crime$outcome_status, getmode_fun(df_crime$outcome_status))
+
+
+
+```
+
+Imputation using the mice library using the method called norm. Predict to predict the data values, as this package provides multiple imputations. For the following temperature dataset, columns like "preselevHp," "SnowDepcm," and "station_ID" are being discarded for their insufficiencies. 
+```{r}
+df_tempra <- subset(df_tempra, select = -c(PreselevHp, SnowDepcm, station_ID))
+#install.packages("mice")
+#performing multiple imputation 
+library(mice)
+
+#find_pattern<-md.pattern(df_tempra)
+
+print(methods(mice))
+
+imputed_data <- mice(df_tempra, m=3, method="norm.predict", seed=5000)
+com_df_tempra <- complete(imputed_data)
+#summary(com_df_tempra)
+missing_tempra_values <- sapply(com_df_tempra, function(x) sum(is.na(x)))
+
+
+
+
+
+```
+No duplicate rows are present in the dataset, which may cause several problems, specifically misinterpretation of the model.
+
+```{r}
+#checking if there is any duplicates in the dataset 
+duplicates_crime  <- df_crime[duplicated(df_crime),]
+print(duplicates_crime)
+duplicates_tempra <- com_df_tempra[duplicated(com_df_tempra)]
+print(duplicates_tempra)
+```
+Data needs to be cleaned, and this is being accomplished through useful techniques of imputation and understanding the data present across its frequencies, specifically categorical and numerical, and the types of data associated with each column. 
+
+The crime and temperature dataset consists of several features that can visualised with cognitive thinking. Depending on the features of the temperature dataset, which consists of temperature attributes, for example, the frequency of temperatures is allotted into average temperature a day, max temperature on that particular day, and minimum temperature of the day as the temperature varies within days. The next component is the wind's direction and the breeze's velocity, which vary each day of the year. Additionally, there are still more kinds of attributes across the temperature. Last but not least is the precipitation, which may influenced by all the supporting factors.
+
+Let's Explore the visualisation insights that are being displayed below:
+
+ The table below resembles a two-way table portraying the BTP and Force associated with the types of criminal offences held at that inspected location. One can inspect from the given two-way table that most cases are being accessed by force, and only BTP is given a small number of locations to inspect. BTP is a transportation force that works with the offences that happen in transportation zones while the forces act on several locations. Most crimes that happen in transportation zones and locally are violent crimes.
+
+```{r}
+
+crime_depending<- table(df_crime$category, df_crime$location_type)
+crime_depending
+library(knitr)
+kable(crime_depending, caption = "Crimes investigated by force and btp")
+
+```
+
+
+The code below converts the given data column date to its respective data type, as the date was in character type, and thereby, it is changed to date format using the format function. The data format is helpful for constructive time series and performing time series validation by interfacing specific features, such as temperature change for that current date.
+
+
+  
+Number of crimes taking place in a particular month
+  The chart below displays a pie chart, considered a radial representation of data, featuring a specific quantity of data within the density of the entire circle. The pie chart plot below provides a narrative regarding crimes in that particular month. The highest number of crimes is in January. For instance, the crime rate fluctuates up or down from January to the end of December. The list of crimes is for February. There may be several reasons why there are fewer crimes in February. This may be due to the temperature variable, which will be known further when the data frames are merged based on the month column and other features that contribute to the effect on crimes. 
+  
+
+```{r}
+library(lubridate)
+#checking the class of date 
+class(df_crime$date) # the class present over here is "characvter" which must be formated to dte structure 
+df_crime$date <- as.Date(paste0(df_crime$date, "-01"), format = "%Y-%m-%d")
+print(class(df_crime$date))
+#creating extra column called month
+df_crime$Month <- month(df_crime$date, label = TRUE, abbr= FALSE)
+per_month_crime_count <- df_crime %>% group_by(Month) %>% summarise(Crime_count=n())
+#print(kable(per_month_crime_count))
+
+#install.packages("plotly")
+
+library(plotly)
+
+per_month_crime_count1 <- df_crime %>% group_by(Month) %>% summarise(Crime_count =n()) %>% mutate(Percentage = Crime_count/ sum(Crime_count)*100)
+
+
+plot_ly(per_month_crime_count1, labels =~Month, values =~Percentage, type="pie", textinfo="label+percent", insidetextorientation="radial", height = 400, width=600, hole=0.41, marker=list(line=list(color='#9467bd', width=7))) %>%layout(title="The number of crimes taken place in a month")
+```
+Types of crimes happening in a particular month. 
+
+The table chart below displays the frequency of offences in a particular month. This shows several trends of types of crimes occurring each month in the table. 
+
+```{r}
+types_of_crime_in_month <- table(df_crime$category, df_crime$Month)
+kable((types_of_crime_in_month))
+
+
+
+filter_df_anti <- df_crime %>% filter(category=="anti-social-behaviour") 
+filter_df_anti <- filter_df_anti %>% group_by(Month)
+#filter_df_anti
+
+crime_monthly_cat <- df_crime %>% group_by(category, Month) %>% summarise(Counting_val = n(), .groups = "drop")
+
+#crime_monthly_cat
+line_data_crime <- ggplot(crime_monthly_cat, aes(x=Month, y = Counting_val, color=category, group=category)) + geom_line(size=1)+ theme_classic() + labs(title = " Monthly crimes trends based on categorical data", x="Month", y="Crimes count") + theme(text=element_text(size=12), axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+
+
+```
+
+From the line plot, we can identify the frequency of different types of crimes happening per month. 
+Anti-social-behaviour trends appear to be increasing in the following months, and there is one small drop in March. Bicycle theft displays a significant constant trend with a slight increase and decrease in that year. The most stolen cases of bicycles happened in September. Burglary has substantial ups and downs across the month. Criminal damage arson has significant ups and downs, while the highest criminal damage happens between March and May. Drugs, other crimes, theft-from-person, possession-of-weapons, public order, other theft and robbery seem to lie in a constant phase for the entire year. Shoplifting fluctuates for an whole year, and so does violent crime. 
+
+
+
+
+
+```{r}
+
+ggplotly(line_data_crime, height = 400, width = 800)
+```
+
+
+
+
+
+
+The code below lets us know if any duplicated data exists, thereby formatting the date column to date. Also, the code provides different categories by applying a loop for the temperature type. The temperature that varies between 5 to 13 is considered to be cold. A temperature that is less than five is considered to be very cold. The temperature from 13 to 19 is warm, and others higher than 19 are hot. The two-way table shows that the months from January are the coldest until the month of May. The coldest month of the year is January. The temperature above 13 is warmer, and the warmest crime in the year can be considered to be in June and July.
+```{r}
+has_duplicates <- any(duplicated(com_df_tempra$Date))
+if (has_duplicates) {
+  print("There are duplicate dates.")
+} else {
+  print("There are no duplicate dates.")
+}
+
+
+print(class(com_df_tempra$Date))
+
+com_df_tempra$Date <- as.Date(com_df_tempra$Date, format = "%Y-%m-%d")
+print(class(com_df_tempra$Date))
+
+#classifying temperature in categories 
+Temp_Category <- rep(NA, nrow(com_df_tempra))
+for (i in 1:nrow(com_df_tempra)) {
+  temp <- com_df_tempra$TemperatureCAvg[i]
+  
+  if(temp <=5){
+    Temp_Category[i]<-"Very Cold"
+  }
+  else if(temp >= 5 && temp <=13 ){
+    Temp_Category[i] <- "Cold"
+  }
+  else if(temp >= 13 && temp <=19){
+    Temp_Category[i]<- "Warm"
+  }
+  else{
+    Temp_Category[i]<- "Hot"
+  }
+  
+}
+
+
+# Categoring date into months 
+com_df_tempra$Month_ <- month(com_df_tempra$Date, label = TRUE, abbr = TRUE)
+
+# finding the change in temperature per month 
+temp_month <- table(Temp_Category, com_df_tempra$Month_)
+kable(temp_month)
+
+
+```
+The below two-way table is based on exploring the wind direction for distinct months. As one explores East Wind, the highest is in May, March and June. ENE seems much in June. ESE is more in September, N is more in May, NE is more in June, NNE is more in May, NNE is more in NW, and NW is more in April, May and August. S is more in May, SE is more in April, SSE is in June, SSW shows highest in Jan, Mar, Jul, Sep, Oct and Dec. SW in Jul, W in Jul and Aug, W in Jul and Aug, WNW in Nov, WSW highest in December.
+
+
+```{r}
+Wind_direction_per_month<-table(com_df_tempra$Month_, com_df_tempra$WindkmhDir)
+kable(Wind_direction_per_month)
+```
+
+The plot below displays the wind speed count for a particular month. It shows that December is considered the windiest month of the year, followed by January and November. Additionally, the least windest months are August and June.
+
+```{r}
+
+gh <- ggplot(com_df_tempra,aes(x=WindkmhInt, fill=Month_)) + geom_histogram(bins = 30) + facet_wrap(~Month_, scales = "free_y") +theme_classic() + theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) 
+ggplotly(gh,height = 400,width = 600)
+```
+
+Visibility Using Boxplot 
+The diagram displays a boxplot that provides a graphical summary of descriptive statistics information, which includes mean, median, first quartile, third quartile, minimum, and maximum. Those data points that lie out of these limited thresholds are outliers. Outliers do cause noise in data. Therefore, sometimes, it is necessary to discard this outlier. The present outlier in January is 5.40, where this data point shows the poorest visibility. This can be considered useful, informative data since there may be a chance of having this occasion. 
+
+
+```{r}
+max(com_df_tempra$VisKm)
+min(com_df_tempra$VisKm)
+
+rontr <- com_df_tempra %>% mutate( Visibility_category=cut(VisKm,breaks = c(0, 10, 30, 50,  75), labels = c("Poor Visibility", "Fair Visibility", "Good Visibility", "Excellent Visibility"), include.lowest = TRUE))
+
+boxplt <- ggplot(rontr, aes(y=VisKm, x=Month_, fill=Month_)) + geom_boxplot() + theme_classic() + labs(title = "Box plot for different  columns with respect to month")
+
+boxplt = boxplt 
+ggplotly(boxplt, height = 400, width = 600, tooltip = "y")
+```
+The diagram below displays the components that cause precipitation. I plotted this graph to determine whether there is any relationship between parameters like temperature, humidity, wind gust, and pressure. Perhaps finding a relationship between different parameters is a complex topic, and it is esoteric because it's not only these factors that can cause precipitation. For instance, geographical terrains can cause precipitation. Let's categorise the graph based on months. 
+
+January: When humidity is high - There can be slight drizzle.
+          Pressure - We can see data points displaying that there is some precipitation around 1000 bar pressure, which            can produce light showers 
+          Average temperature: A peak of data points produces precipitation around 10 degrees in the month of January.
+          Wind gust: A peak of data points is displayed around the wind speed of 50 to 70 metres per 20 seconds.
+          Wind speed: A peak of data points is displayed around the wind speed of 20 to 30 km per hour, which causes precipitation of around 0 to 10 mm.
+          
+February: When humidity is high, precipitation can occur.
+          Pressure: We can see data points displaying a slight drizzle around 1000 to 2000 bar pressure.
+          Average temperature—A peak of data points is observed for temperatures around 0 to 5, which causes slight drizzle.
+          Wind gust:- There is no precipitation at any wind speed, but a slight drizzle. 
+          Wind speed:- There is no precipitation at any wind speed. 
+          
+May: Humidity- Precipitation is observed at 80 to 100 per cent of humidity
+     Pressure- Precipitation is observed at 900 to 1000 bar.
+     Average Temperature - Precipitation is observed at 0 to 5 degrees Celsius. 
+     Wind gust- Precipitation is observed at a wind gust of around 50 meters per second. 
+     Wind speed_ precipitation is observed at a wind speed of around 20 km per hour.
+     
+April: Humidity- Precipitation is observed at a 70 to 90 per cent humidity rate. 
+        Pressure: Precipitation is observed at a pressure rate of around 1000. 
+        Average Temperature: Precipitation is observed at an average temperature of 5 to 10 degrees Celsius. 
+        Windgust: Precipitation is observed at a wind gust of around 50. 
+        Wind speed: Precipitation is observed at a wind speed of 10 to 20 km per hour. 
+
+May: Humidity- Precipitation is observed at a humidity rate of 80 to 100 per cent. 
+        Pressure: Precipitation is observed at a pressure rate of around 1020. 
+        Average Temperature: Precipitation is observed at an average temperature of 5 to 15 degrees Celsius. 
+        Windgust: Precipitation is observed at a wind gust from 25 to 50 above slightly. 
+        Wind speed: Precipitation is observed at a wind speed of 10 to 30 km per hour. 
+          
+June: Humidity- Precipitation is observed at a 70 to 90 per cent humidity rate. 
+        Pressure: Precipitation is observed at a 1000 to 1020 bar pressure rate. 
+        Average Temperature: Precipitation is observed at an average temperature of 10 to 20 degrees Celsius. 
+        Windgust: Precipitation is observed at a wind gust of around 25 to 50 meters per second. 
+        Wind speed: Precipitation is observed at a wind speed of 10 to 20 km per hour. 
+        
+July: Humidity- Precipitation is observed at a 70 to 90 per cent humidity rate. 
+        Pressure: Precipitation is observed at a pressure rate of around 1000 to 1020 bar. 
+        Average Temperature: Precipitation is observed at an average temperature of 10 to 20 degrees Celsius. 
+        Windgust: Precipitation is observed at a wind gust of around 25 to 50 meters per second. 
+        Wind speed: Precipitation is observed at a wind speed of 10 to 20 and above km per hour. 
+
+August: Humidity- Precipitation is observed at a 70 to 100 per cent humidity rate. 
+        Pressure: Precipitation is observed at a pressure rate of around 980 to 1020 bars. 
+        Average Temperature: Precipitation is observed at an average temperature of 10 to 20 degrees Celsius. 
+        Windgust: Precipitation is observed at a wind gust of around 25 to 50 meters per second. 
+        Wind speed: Precipitation is observed at a wind speed of 10 to 20 and above km per hour. 
+
+September: Humidity- Precipitation is observed at a 70 to 100 per cent humidity rate. 
+            Pressure: Precipitation is observed at a pressure rate of around 980 to 1020 bars. 
+            Average Temperature: Precipitation is observed at an average temperature of 10 to 20 and above degrees                    Celsius. 
+            Windgust: Precipitation is observed at a wind gust of around 25 and below 50 and above meters per second. 
+            Wind speed: Precipitation is observed at a wind speed of 10 to 30 and above km per hour. 
+            
+October: Humidity- Precipitation is observed at a humidity rate of 80 to 100 per cent. 
+           Pressure: Precipitation is observed at a pressure rate of around 980 and below 1020 bars. 
+           Average Temperature: Precipitation is observed at an average temperature of 5 to 20 degrees Celsius. 
+           Windgust: Precipitation is observed at a wind gust of around 25 to 75 meters per second. 
+           Wind speed: Precipitation is observed at a wind speed of 10 to 30 and above km per hour. 
+           
+November: Humidity- Precipitation is observed at a humidity rate of 80 to 100 per cent. 
+           Pressure: Precipitation is observed at a pressure rate of around 980 and below 1020 bars. 
+           Average Temperature: Precipitation is observed at an average temperature of 0 and below 15 degrees Celsius. 
+           Windgust: Precipitation is observed at a wind gust of around 25 and below 75 and above meters per second. 
+           Wind speed: Precipitation is observed at any random speed. 
+
+December: Humidity- Precipitation is observed at a 70 to 100 per cent humidity rate. 
+        Pressure: Precipitation is observed at a pressure rate of around 1000 and below to 1020 and above bars. 
+        Average Temperature: Precipitation is observed at an average temperature of 5 to 10 degrees Celsius. 
+        Windgust - Precipitation observed at random gust winds. 
+        Wind speed: Precipitation is observed at random wind speed. 
+        
+
+
+```{r}
+com_df_ln <- com_df_tempra %>% pivot_longer(cols = c(WindkmhInt, HrAvg, WindkmhGust, PresslevHp, TemperatureCAvg),names_to = "var", values_to = "digit")
+com_df_ln
+
+ggpla <- ggplot(com_df_ln, aes(x=Precmm, y = digit, color= var)) + geom_point(aes(color=factor(Month_))) + facet_wrap(~ var, scales = "free_y") + theme_classic() + labs(x= "Precipitation in mm", y = "difference compnents causing precipitation", title = "Relationship between difference components that causes precipitation") +  theme(text=element_text(size=12)) 
+
+ggpla <- ggplotly(ggpla, tooltip = "text")
+ggplotly(ggpla, height = 400, width = 600)
+
+
+```
+
+Correlation Matrix : 
+The correlation matrix describes the relationship between different columns. The columns that show a correlation coefficient of 0 have no impact on any columns. 
+Columns like "PurrlevHp" show a positive correlation with "SunD1h". That means when there is more sunlight, the pressure ultimately increases. While columns like "VisKm", "TemperatureCAvg", and "TemperatureCMax" show no correlation factor. Additionally, the rest of the columns have a negative correlation; in other words, they are inverse to the factor. 
+"SunD1h" shows a positive correlation with "VisKm", "TemperatureCAvg", "TemperatureCMax", "TemperatureCMin", and "PresslevHp". Additionally, "Precmm", "HrAvg", "TotClOct", "lowClOct", "WindkmhInt", and "WindkmhGust" have a negative correlation. Meanwhile, "TdAvgC" shows no correlation. "TemperatureCMax" shows a positive correlation with "TdAvgC", "VisKm", "TemperatureCAvg", "TemperatureCMin", and "SunD1h". Additionally,  "HrAvg", "TotClOct", and "lowClOct" have a negative correlation. While "Precmm", "WindkmhInt", and "WindkmhGust" show no correlation. "TemperatureCAvg" shows a positive correlation with "Precmm", "TdAvgC", "VisKm", "TemperatureCMax", "TemperatureCMin", and "SunD1h". Additionally,  "HrAvg", "TotClOct", and "lowClOct" show a negative correlation. Meanwhile, "WindkmhInt" and "WindkmhGust" show no correlation. "TemperatureCMin" shows a positive correlation with "Precmm", "TdAvgC", "VisKm", "TemperatureCMax", "TemperatureCMin", and "SunD1h". Additionally,  "HrAvg", "TotClOct", "PresslevHp  show negative correlation. While, "WindkmhInt", "WindkmhGust", "lowClOct" show no correlation. "TdAvgC"  shows positive correlation with "Precmm", "VisKm", "TemperatureCAvg", "TemperatureCMax", "TemperatureCMin". Additionally , "HrAvg, "Precmm" shows negative correlation. While "TotClOct", "lowClOct", "WindkmhInt", "WindkmhGust, and "SunD1h" show no correlation. "WindkmhGust" shows a positive correlation with "Precmm", "TotClOct", "lowClOct, "VisKm" and "WindkmhInt". Additionally, "SunD1h" and "PresslevHp". While rest other columns don't show any correlation. For  "TotClOct" shows positive correlation for "Precmm",  "HrAvg", "WindkmhInt", "WindkmhGust". While, "VisKm", "TemperatureCAvg, "TemperatureCMax, "SunD1h", "SunD1h" shows negative correlation and other columns do not correlate. For "HrAvg", both negative and positive correlation are shown below in the graph, some with no relation and also for precipitation. 
+
+
+
+```{r}
+library(ggcorrplot)
+#names(com_df_tempra)
+selected_col_indf<- com_df_tempra[, c("TemperatureCAvg", "Precmm", "SunD1h", "VisKm", "TemperatureCMax", "TemperatureCMin", "TdAvgC", "HrAvg", "WindkmhInt", "WindkmhGust", "PresslevHp", "TotClOct", "lowClOct")]
+cor_mt <- round(cor(selected_col_indf, use = "complete.obs"), 1)
+pval_mt <- cor_pmat(selected_col_indf)
+
+gg <- ggcorrplot(cor_mt, hc.order = TRUE, p.mat =pval_mt, insig = "blank", lab = TRUE) + theme_classic() + labs(title = "Relatioship betw each column") +  theme(text=element_text(size=13), axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+ggplotly(gg, height = 800, width = 800)
+
+```
+The time series graph displays the variation of precipitation with date.
+
+```{r}
+library(lubridate)
+library(xts)
+library(forecast)
+library(ggfortify)
+
+df_dates  <- ymd(com_df_tempra$Date)
+chuva <- com_df_tempra$Precmm
+drown_pour <- xts(data.frame(chuva=chuva), order.by = df_dates)
+
+xzzz=autoplot(drown_pour) + theme_bw()
+ggplotly(xzzz, height = 500, width = 600)
+
+```
+
+Precipitation based time series 4 days in advance precipitation in mm, the highest precipitation is about 33mm on 2023-10-19. The purple color indicates the forcast of average of 4 days.
+```{r}
+library(xts)
+## Forcast data 
+Forcast_Rainfall <- forecast::ma(chuva, 4, centre = TRUE) #quarto dias 
+
+combo <- xts(data.frame(Rainfall=chuva, Forcast_Rainfall), df_dates)
+combo <- na.omit(combo)
+z_data <- autoplot.zoo(combo,facet=NULL)+
+geom_line(size=1.1) +
+scale_color_manual( values = c("darkgrey","purple"), breaks = c("Rainfall", "Forcast_Rainfall"),labels = c("Rainfall", "Forcast_Rainfall"))+theme_bw() + labs(title = " Time series for Precipitation ")
+ggplotly(z_data, height = 400, width = 600)
+```
+The map diagram displays the amount of crime taken place at colchester. The  most top 5 crime locations are displayed in the map which is at high-street and is at an amount of 241 crime that has taken place at that location. 
+
+
+```{r}
+
+
+library(ggplot2)
+library(Rcpp)
+library(sf)
+library(tidyverse)
+library(ggmap)
+library(leaflet)
+
+df_crime_mapping_ <- df_crime %>% group_by(lat, long) %>%count(name = "n_") %>% ungroup() %>% arrange(desc(n_))
+
+df_crime_mapping <- top_n(df_crime_mapping_, 5, n_)
+# finding the average latitude and longitude for the initial map view 
+
+
+aver_longitude <- mean(df_crime_mapping$long, na.rm = TRUE)
+aver_latitude <- mean(df_crime_mapping$lat, na.rm = TRUE)
+
+maplf <- df_crime_mapping %>% leaflet() %>% addTiles() %>% setView(lng=aver_longitude, lat=aver_latitude, zoom = 12) %>% addCircleMarkers(popup=~paste("Crimes :", n_), label = ~paste("Crimes :", n_), color = "#FF0000", radius = ~sqrt(n_)*2, lng = ~long, lat = ~lat,fillOpacity=0.9, labelOptions=labelOptions(noHide = TRUE, direction = "auto")) 
+
+
+maplf
+
+
+```
+
+
+
+
+Sino and Violin plots were added together to provide the distribution of data. It's the same as the boxplot, which provides the statistical summary of the distribution of data. Over here, we can understand the data based on sino density and the density of data points present in the outline of the violin plot, which can provide essential insights into the data. Here, for the column of HrAvg, we can see that there are some data points that are close to falling out of the limit and may fall for the outlier zone. There are two outlier points, which are in the months of June and March.
+```{r}
+library(ggforce)
+
+
+sinaplt <- ggplot(com_df_tempra, aes(y=HrAvg, x=Month_)) + geom_violin() + geom_sina(aes(colour=Month_),alpha=0.5) + theme_classic() 
+ggplotly(sinaplt, ,height = 400,width = 600)
+```
+
+The syntax below constructs a new data set by merging two dataset. This two data set are being merged based on the mon th column as the column column that  is between both the dataset is the date. The date column in the temperature dataset consist of date-Month-year while the date column in the crime data set doesnt consist of date number for that perticular Month and year. So after merging this data, it can be helpful in providing necessary insights from it regarding how crime varies with the temperature.  
+
+```{r}
+library(hrbrthemes)
+library(patchwork)
+
+crime_count_data <- df_crime %>% mutate(Month_data = format(df_crime$date, "%Y-%m")) %>% group_by(Month_data) %>% summarise(Numer_crimes= n(), .groups = "drop")
+
+weather_data_r <- com_df_tempra %>% mutate(Month_data= format(com_df_tempra$Date, "%Y-%m")) %>% group_by(Month_data) %>% summarise(Avg_precipitation = mean(Precmm, na.rm = TRUE), .groups = "drop")
+
+combo_data <- merge(crime_count_data, weather_data_r, by="Month_data")
+combo_data
+
+```
+The chart below explains both crimes and how they relate to precipitation. Yes, there is some relationship with its ups and downs. Maybe we can consider that there can be psychological change in an individual's behaviour due to some weather circumstances. From the line chart, we can assume that when precipitation decreases, crimes also decrease, and when precipitation increases, so does crime. The trends are displayed in the chart below.
+
+```{r}
+
+
+combo_data$Month_data <- as.Date(paste0(combo_data$Month_data, "-01"))
+
+p1 <- ggplot(combo_data, aes(x=Month_data, y = Numer_crimes))+ geom_line() + theme_classic() + theme_bw()
+
+p2  <- ggplot(combo_data, aes(x=Month_data, y =Avg_precipitation))+geom_line(color="green") + labs( x="Month", y="precipation") + theme_classic() + theme_bw()
+
+
+combined_plot <- p1 / p2  
+combined_plot
+
+```
+The density plot provides the density of sun hours. For the month of December, the sun hours are less, while April, May, June and July show maximum Sun hours. Talking about the intensity of the sunlight, The month of December is less sunnier than the month of June.
+
+
+```{r}
+x1 <- ggplot(com_df_tempra,aes(x=SunD1h, fill= Month_ )) + geom_density(alpha=0.5) + labs( title = " Density of sun hours during each month", x="Sun limit", y ="Density") + theme_minimal()
+ggplotly(x1, height = 400, width = 600)
+```
+The graph below is a dot plot that displays the relationship between visibility and rainfall—poor visibility for high precipitation while vice versa for the other. 
+```{r}
+
+
+rain_visi <- ggplot(rontr, aes(y=Precmm, x=Visibility_category, fill=Visibility_category ))+geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 3.0)+theme_classic()+labs(title = "Rainfall v/s Visibility", x="Visibility Category", y="precipitation in (mm")
+
+ggplotly(rain_visi, height = 400, width = 800)
+```
+The graph below displays the relationship between crime and visibility. It seems that there is no relationship between crime and visibility.
+
+```{r}
+weather_data_v <- com_df_tempra %>% mutate(Month_data= format(com_df_tempra$Date, "%Y-%m")) %>% group_by(Month_data) %>% summarise(Avg_visuali = mean(VisKm, na.rm = TRUE), .groups = "drop")
+
+combo_data_v <- merge(crime_count_data, weather_data_v, by="Month_data")
+#combo_data_v
+
+combo_data_v$Month_data <- as.Date(paste0(combo_data_v$Month_data, "-01"))
+
+p11 <- ggplot(combo_data_v, aes(x=Month_data, y = Numer_crimes))+ geom_line(color="blue") + theme_classic() + theme_bw()
+
+p22  <- ggplot(combo_data_v, aes(x=Month_data, y =Avg_visuali))+geom_line(color="red") + labs( x="Month", y="visibility") + theme_classic() + theme_bw()
+combined_plot_s <- p11 / p22  
+combined_plot_s
+
+```
+
+
+
+
+Crime relationship with other columns: We can see that crime has a positive relationship with temperature and precipitation. Also, crime crime has a negative correlation with windspeed and pressure.
+
+
+```{r}
+weather_data_rr <- com_df_tempra %>% mutate(Month_data= format(com_df_tempra$Date, "%Y-%m")) %>% group_by(Month_data) %>% summarise(Avg_Visibility = mean(VisKm, na.rm = TRUE), Avg_Temperature = mean(TemperatureCAvg, na.rm = TRUE), Avg_Windspeed= mean(WindkmhInt, na.rm = TRUE), Avg_Presure = mean(PresslevHp, na.rm = TRUE), Avg_Humidity= mean(HrAvg, na.rm = TRUE), Avg_precipitation = mean(Precmm, na.rm = TRUE), .groups = "drop") 
+
+combo_data_two <- merge(crime_count_data, weather_data_rr, by="Month_data")
+combo_data_two_data<-combo_data_two
+combo_data_two <- subset(combo_data_two, select = -c(Month_data))
+
+
+# Correlation matrix  for above
+corr_matrix_data <- round(cor(combo_data_two),1)
+pval_cor_data <- cor_pmat(corr_matrix_data)
+
+
+
+
+G_cor <- ggcorrplot(corr_matrix_data, hc.order = TRUE,  outline.color = "black", lab = TRUE, ggtheme = ggplot2::theme_bw(), colors = c("darkgreen", "maroon", "blue") ) + labs(title = " Corr for crime and other column ")
+ggplotly(G_cor, height = 400, width = 600)
+```
+Time series graph based on average crimes, temperature  and precipitation to elaborate the correlation plot.
+```{r}
+
+
+combo_data_two_data$Month_data<- as.Date(paste0(combo_data_two_data$Month_data, "-01"))
+
+combo_data_set_time <- xts(combo_data_two_data[, c("Avg_Temperature", "Avg_precipitation" , "Numer_crimes")], order.by = combo_data_two_data$Month_data)
+
+ploting_time_series <- autoplot(combo_data_set_time) + ylab("values") + xlab("Month") + theme_minimal() 
+ploting_time_series
+```
+
+
+Conclusion: From the given datasets, crime and temperature, there are some positive and negative correlation factors, for example, precipitation and temperature, that are mentioned in the above plots and display some graphical relationship between precipitation and crime. Thereby, we can also conclude that temperature and visibility have a strong correlation, and temperature and precipitation have a moderate correlation. A number of crimes and weather variables show a very weak correlation. 
